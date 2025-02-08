@@ -21,6 +21,7 @@ contract PiggyBank {
     event Contributed(address indexed contributor, uint256 amount, uint256 time);
     event Withdrawn(uint256 amount, uint256 time);
     event NFTMinted(address indexed recipient, uint256 tokenId);
+    event ManagerChanged(address indexed oldManager, address indexed newManager);
 
     // Constructor
     constructor(address _token, address _nftContract, uint256 _targetAmount, uint256 _withdrawalDate, address _manager) {
@@ -79,9 +80,10 @@ contract PiggyBank {
     }
 
     function changeManager(address newManager) external onlyManager {
-    require(newManager != address(0), "INVALID MANAGER ADDRESS");
-    manager = newManager;
-}
+        require(newManager != address(0), "INVALID MANAGER ADDRESS");
+        emit ManagerChanged(manager, newManager);
+        manager = newManager;
+    }
 
     function getContractBalance() external view returns (uint256) {
         return token.balanceOf(address(this));

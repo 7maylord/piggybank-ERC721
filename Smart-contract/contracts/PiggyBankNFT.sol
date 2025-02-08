@@ -7,10 +7,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract PiggyBankNFT is ERC721Enumerable, Ownable {
     uint256 private _tokenIds;
 
-    constructor() ERC721("PiggyBankNFT", "PBNFT") {}
+    // Pass msg.sender to Ownable()
+    constructor() ERC721("PiggyBankNFT", "PBNFT") Ownable(msg.sender) {}
 
-    function mintNFT(address recipient) external onlyOwner {
-        _tokenIds += 1;
+    function mintNFT(address recipient) external onlyOwner returns (uint256) {
+        _tokenIds++;
         _safeMint(recipient, _tokenIds);
         return _tokenIds;
     }
