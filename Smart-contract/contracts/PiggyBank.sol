@@ -2,12 +2,20 @@
 pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./PiggyBankNFT.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "./PiggyBank-ERC721.sol";
+import "./PiggyBank-ERC20.sol";
+
+
+interface IOurERC721 is IERC721 {
+    function mint(address _to) external;    
+}
+
 
 contract PiggyBank {
     // State variables
-    IERC20 public token;
-    PiggyBankNFT public nftContract;
+    MayToken public token;
+    PiggyBankNFT public nft;
     uint256 public targetAmount;
     uint256 public immutable withdrawalDate;
     uint8 public contributorsCount;
@@ -21,16 +29,16 @@ contract PiggyBank {
     event Contributed(address indexed contributor, uint256 amount, uint256 time);
     event Withdrawn(uint256 amount, uint256 time);
     event NFTMinted(address indexed recipient, uint256 tokenId);
-    event ManagerChanged(address indexed oldManager, address indexed newManager);
+    
 
     // Constructor
-    constructor(address _token, address _nftContract, uint256 _targetAmount, uint256 _withdrawalDate, address _manager) {
+    constructor(address _token, address _nft, uint256 _targetAmount, uint256 _withdrawalDate, address _manager) {
         require(_withdrawalDate > block.timestamp, "WITHDRAWAL MUST BE IN FUTURE");
         require(_token != address(0), "INVALID TOKEN ADDRESS");
-        require(_nftContract != address(0), "INVALID NFT CONTRACT ADDRESS");
+        require(_nft != address(0), "INVALID NFT CONTRACT ADDRESS");
         
-        token = IERC20(_token);
-        nftContract = PiggyBankNFT(_nftContract);
+        token = MayToken(_token);
+        nft = PiggyBankNFT(_nft);
         targetAmount = _targetAmount;
         withdrawalDate = _withdrawalDate;
         manager = _manager;
@@ -47,6 +55,11 @@ contract PiggyBank {
         require(block.timestamp <= withdrawalDate, "YOU CAN NO LONGER SAVE");
         require(amount > 0, "YOU ARE BROKE");
 
+        // Check token balance and allowance
+        require(token.balanceOf(msg.sender) >= amount, "INSUFFICIENT BALANCE");
+        require(token.allowance(msg.sender, address(this)) >= amount, "INSUFFICIENT ALLOWANCE");
+
+
         // Transfer tokens from sender to contract
         require(token.transferFrom(msg.sender, address(this), amount), "TRANSFER FAILED");
 
@@ -58,9 +71,9 @@ contract PiggyBank {
         contributions[msg.sender] += amount;
 
         //Mint NFT if this is second contribution
-        if (contributions[msg.sender] > 0 && !hasReceivedNFT[msg.sender]) {
+        if (contributions[msg.sender] > amount && !hasReceivedNFT[msg.sender]) {
             
-            uint256 tokenId = nftContract.mintNFT(msg.sender);
+            uint256 tokenId = nft.mintNFT(msg.sender);
             hasReceivedNFT[msg.sender] = true;
             emit NFTMinted(msg.sender, tokenId);
         }
@@ -79,12 +92,7 @@ contract PiggyBank {
         emit Withdrawn(contractBalance, block.timestamp);
     }
 
-    function changeManager(address newManager) external onlyManager {
-        require(newManager != address(0), "INVALID MANAGER ADDRESS");
-        emit ManagerChanged(manager, newManager);
-        manager = newManager;
-    }
-
+    
     function getContractBalance() external view returns (uint256) {
         return token.balanceOf(address(this));
     }
